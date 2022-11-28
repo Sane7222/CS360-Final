@@ -1,5 +1,5 @@
 /*
- *    Matias Moseley     11/3/2022     CS 360     Assignment 8
+ *    Matias Moseley     11/27/2022     CS 360     Final
 */
 
 #include<stdio.h>
@@ -14,6 +14,12 @@
 #define PORT_NUM "49999"
 #define BACKLOG 1
 #define BUFFER_SIZE 512
+
+void removeTrailingWhiteSpace(char *str){
+    int index = 0, i = 0;
+    while(str[i] != '\0') str[i] != ' ' && str[i] != '\t' ? index = ++i : i++;
+    str[index] = '\0';
+}
 
 void main(int argc, char *argv[]){
 
@@ -42,8 +48,10 @@ void main(int argc, char *argv[]){
         fprintf(stdout, "Please enter command:\n");
         num = read(0, buffer, BUFFER_SIZE);
         buffer[num-1] = '\0';
-        write(connectfd, buffer, num); // Write command to server
+        sscanf(buffer, " %[^\n]", buffer);
+        removeTrailingWhiteSpace(buffer);
 
+        write(connectfd, buffer, num); // Write command to server
         if(!strncmp(buffer, exitCond, num)) exit(0); // Exit recieved
     }
 }
