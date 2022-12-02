@@ -35,23 +35,34 @@ void setCommands(char *commands[]){
     commands[4] = "rls"; commands[5] = "get"; commands[6] = "show"; commands[7] = "put";
 }
 
-int analyizeInput(char *str){ // Returns array index of commands
-    char *commands[8]; setCommands(commands);
-    char *token = strtok(str, " ");
+int analyizeInput(const char *str){ // Returns array index of commands
+    char *commands[8], token[BUFFER_SIZE]; setCommands(commands);
+    sscanf(str, "%s", token);
     int i;
     for(i = 0; i < 8; i++) if(!strcmp(token, commands[i])) break;
     return i;
 }
 
-void exeCommand(int i, int fd){
+void localCD(char *path){
+    struct stat area, *s = &area;
+    if(access(path, R_OK) != 0 || lstat(path, s) != 0) fprintf(stderr, "Error: %s\n", strerror(errno));
+    else if(S_ISDIR(s->st_mode)){
+        if(chdir(path) != 0) fprintf(stderr, "Error: %s\n", strerror(errno));
+    }
+    else fprintf(stderr, "Error: Not a Directory <%s>\n", path);
+}
+
+void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE];
-    int num;
     switch(i){
         case 0: // Exit
             write(fd, "Q", 2);
             parseAndLog(fd, buffer, 1);
             exit(0);
         case 1: // CD
+            strtok(str, " ");
+            char *path = strtok(NULL, " ");
+            localCD(path);
             break;
         case 2: // RCD
             write(fd, "C", 2);
@@ -79,7 +90,7 @@ void exeCommand(int i, int fd){
             parseAndLog(fd, buffer, 1);
             break;
         default: 
-            fprintf(stdout, "ERROR: Invalid Command\n");
+            fprintf(stdout, "Error: Invalid Command\n");
     }
 }
 
@@ -92,6 +103,6 @@ void main(int argc, char *argv[]){
     for(;;){
         fprintf(stdout, "Command: "); fflush(NULL);
         parseAndLog(0, buffer, 0);
-        exeCommand(analyizeInput(buffer), connectfd);
+        exeCommand(analyizeInput(buffer), connectfd, buffer);
     }
 }
