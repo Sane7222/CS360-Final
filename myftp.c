@@ -22,7 +22,7 @@ int removeTrailingWhiteSpace(char *str){ // Returns length of string
     return i;
 }
 
-void parseAndLog(int fd, char *buffer, int logOpt){
+void readParseAndLog(int fd, char *buffer, int logOpt){
     int num = read(fd, buffer, BUFFER_SIZE);
     buffer[num-1] = '\0';
     sscanf(buffer, " %[^\n]", buffer);
@@ -40,6 +40,7 @@ int analyizeInput(const char *str){ // Returns array index of commands
     sscanf(str, "%s", token);
     int i;
     for(i = 0; i < 8; i++) if(!strcmp(token, commands[i])) break;
+    if(i == 0 || i == 3 || i == 4) if(strcmp(str, commands[i])) i = 8; // exit | ls | rls
     return i;
 }
 
@@ -57,7 +58,7 @@ void exeCommand(int i, int fd, char *str){
     switch(i){
         case 0: // Exit
             write(fd, "Q", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             exit(0);
         case 1: // CD
             strtok(str, " ");
@@ -66,31 +67,54 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 2: // RCD
             write(fd, "C", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             break;
         case 3: // LS
+            pid_t gp;
+            if(gp = fork()){ // Parent
+                waitpid(gp, NULL, 0);
+            } else { // Child
+                int fd[2];
+                if(pipe(fd) != 0){ fprintf(stderr, "Error: %s\n", strerror(errno)); exit(1); }
+
+                pid_t p;
+                if(p = fork()){ // Parent
+                    if(close(fd[1]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+                    if(dup2(fd[0], 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }   // Pipe reads from STDIN
+                    if(close(fd[0]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+
+                    waitpid(p, NULL, 0);
+                    execlp("more", "more", "-20", NULL);
+                } else { // Child
+                    if(close(fd[0]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+                    if(dup2(fd[1], 1) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }   // Pipe writes to STDOUT
+                    if(close(fd[1]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+                    
+                    execlp("ls", "ls", "-l", NULL);
+                }
+            }
             break;
         case 4: // RLS
             write(fd, "D", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             write(fd, "L", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             break;
         case 5: // Get
         case 6: // Show
             write(fd, "D", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             write(fd, "G", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             break;
         case 7: // Put
             write(fd, "D", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             write(fd, "P", 2);
-            parseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1);
             break;
         default: 
-            fprintf(stdout, "Error: Invalid Command\n");
+            fprintf(stderr, "Error: Invalid Command\n");
     }
 }
 
@@ -102,7 +126,7 @@ void main(int argc, char *argv[]){
 
     for(;;){
         fprintf(stdout, "Command: "); fflush(NULL);
-        parseAndLog(0, buffer, 0);
+        readParseAndLog(0, buffer, 0);
         exeCommand(analyizeInput(buffer), connectfd, buffer);
     }
 }
