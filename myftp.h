@@ -1,3 +1,16 @@
+#ifndef MYFTP_H
+#define MYFTP_H
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<errno.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/wait.h>
+#include<netdb.h>
+
 #define BUFFER_SIZE 512
 
 struct addrinfo * getAddr(char *name, char *portNum){
@@ -16,15 +29,4 @@ struct addrinfo * getAddr(char *name, char *portNum){
     return this;
 }
 
-int connectAsClient(struct addrinfo *this){
-    int connectfd;
-
-    if((connectfd = socket(this->ai_family, this->ai_socktype, 0)) == -1 || connect(connectfd, this->ai_addr, this->ai_addrlen) == -1){ // Create a socket and connect it to server port
-        fprintf(stderr, "Error: %s\n", strerror(errno));
-        freeaddrinfo(this);
-        exit(1);
-    }
-
-    freeaddrinfo(this);
-    return connectfd;
-}
+#endif
