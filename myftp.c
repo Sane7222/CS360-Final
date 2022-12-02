@@ -61,7 +61,7 @@ void exeCommand(int i, int fd, char *str){
             exit(0);
         case 1: // CD
             strtok(str, " ");
-            char *path = strtok(NULL, " ");
+            char *path = strtok(NULL, "\0");
             localCD(path);
             break;
         case 2: // RCD
