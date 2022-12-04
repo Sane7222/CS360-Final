@@ -30,4 +30,19 @@ struct addrinfo * getAddr(char *name, char *portNum){
     return this;
 }
 
+int removeTrailingWhiteSpace(char *str){ // Returns length of string
+    int index = 0, i = 0;
+    while(str[i] != '\0') str[i] != ' ' && str[i] != '\t' ? index = ++i : i++;
+    str[index] = '\0';
+    return i;
+}
+
+void readParseAndLog(int fd, char *buffer, int logOpt){
+    int num = read(fd, buffer, BUFFER_SIZE);
+    buffer[num-1] = '\0';
+    sscanf(buffer, " %[^\n]", buffer);
+    removeTrailingWhiteSpace(buffer);
+    if(logOpt) fprintf(stdout, "%s\n", buffer);
+}
+
 #endif

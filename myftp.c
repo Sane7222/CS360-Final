@@ -15,21 +15,6 @@ int connectToPort(struct addrinfo *this){
     return connectfd;
 }
 
-int removeTrailingWhiteSpace(char *str){ // Returns length of string
-    int index = 0, i = 0;
-    while(str[i] != '\0') str[i] != ' ' && str[i] != '\t' ? index = ++i : i++;
-    str[index] = '\0';
-    return i;
-}
-
-void readParseAndLog(int fd, char *buffer, int logOpt){
-    int num = read(fd, buffer, BUFFER_SIZE);
-    buffer[num-1] = '\0';
-    sscanf(buffer, " %[^\n]", buffer);
-    removeTrailingWhiteSpace(buffer);
-    if(logOpt) fprintf(stdout, "%s\n", buffer);
-}
-
 void setCommands(char *commands[]){
     commands[0] = "exit"; commands[1] = "cd"; commands[2] = "rcd"; commands[3] = "ls";
     commands[4] = "rls"; commands[5] = "get"; commands[6] = "show"; commands[7] = "put";
@@ -80,14 +65,14 @@ void exeCommand(int i, int fd, char *str){
                 pid_t p;
                 if(p = fork()){ // Parent
                     if(close(fd[1]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
-                    if(dup2(fd[0], 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }   // Pipe reads from STDIN
+                    if(dup2(fd[0], 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); } // Pipe reads from STDIN
                     if(close(fd[0]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
 
                     waitpid(p, NULL, 0);
                     execlp("more", "more", "-20", NULL);
                 } else { // Child
                     if(close(fd[0]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
-                    if(dup2(fd[1], 1) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }   // Pipe writes to STDOUT
+                    if(dup2(fd[1], 1) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); } // Pipe writes to STDOUT
                     if(close(fd[1]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
                     
                     execlp("ls", "ls", "-l", NULL);
@@ -97,8 +82,22 @@ void exeCommand(int i, int fd, char *str){
         case 4: // RLS
             write(fd, "D", 2);
             readParseAndLog(fd, buffer, 1);
-            write(fd, "L", 2);
-            readParseAndLog(fd, buffer, 1);
+            sscanf(buffer, "A%s", buffer);
+            struct addrinfo *data = getAddr(NULL, buffer);
+            int connectfd = connectToPort(data);
+            write(connectfd, "L", 2);
+            readParseAndLog(connectfd, buffer, 1);
+
+            pid_t p;
+            if(p = fork()){ // Parent
+                waitpid(p, NULL, 0);
+            } else { // Child
+                if(dup2(connectfd, 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); } // Writes to STDIN
+                if(close(connectfd) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+                execlp("more", "more", "-20", NULL);
+            }
+
+            close(connectfd);
             break;
         case 5: // Get
         case 6: // Show
