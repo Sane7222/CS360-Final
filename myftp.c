@@ -15,6 +15,11 @@ int connectToPort(struct addrinfo *this){
     return connectfd;
 }
 
+/*Complete commands
+    ProfServ + MyClient     |     MyServ + ProfClient     |     MyClient + MyClient
+    ls cd rls ?exit?              ls cd rls exit                ls cd rls exit
+
+*/
 void setCommands(char *commands[]){
     commands[0] = "exit"; commands[1] = "cd"; commands[2] = "rcd"; commands[3] = "ls";
     commands[4] = "rls"; commands[5] = "get"; commands[6] = "show"; commands[7] = "put";
@@ -42,7 +47,7 @@ void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE];
     switch(i){
         case 0: // Exit
-            write(fd, "Q", 2);
+            write(fd, "Q\n", 2);
             readParseAndLog(fd, buffer, 1);
             exit(0);
         case 1: // CD
@@ -51,7 +56,7 @@ void exeCommand(int i, int fd, char *str){
             localCD(path);
             break;
         case 2: // RCD
-            write(fd, "C", 2);
+            write(fd, "C\n", 2);
             readParseAndLog(fd, buffer, 1);
             break;
         case 3: // LS
@@ -80,13 +85,13 @@ void exeCommand(int i, int fd, char *str){
             }
             break;
         case 4: // RLS
-            write(fd, "D", 2);
+            write(fd, "D\n", 2);
             readParseAndLog(fd, buffer, 1);
             sscanf(buffer, "A%s", buffer);
             struct addrinfo *data = getAddr(NULL, buffer);
             int connectfd = connectToPort(data);
-            write(connectfd, "L", 2);
-            readParseAndLog(connectfd, buffer, 1);
+            write(fd, "L\n", 2); // 2 were connectfd
+            readParseAndLog(fd, buffer, 1);
 
             pid_t p;
             if(p = fork()){ // Parent
@@ -101,15 +106,15 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 5: // Get
         case 6: // Show
-            write(fd, "D", 2);
+            write(fd, "D\n", 2);
             readParseAndLog(fd, buffer, 1);
-            write(fd, "G", 2);
+            write(fd, "G\n", 2);
             readParseAndLog(fd, buffer, 1);
             break;
         case 7: // Put
-            write(fd, "D", 2);
+            write(fd, "D\n", 2);
             readParseAndLog(fd, buffer, 1);
-            write(fd, "P", 2);
+            write(fd, "P\n", 2);
             readParseAndLog(fd, buffer, 1);
             break;
         default: 

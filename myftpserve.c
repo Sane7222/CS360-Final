@@ -44,7 +44,7 @@ int setupPort(struct addrinfo *this, char *ascii){
     Page 1204:
         "any type of socket address structure can be cast"
     */
-    sprintf(ascii, "A%u", ntohs(((struct sockaddr_in *)this->ai_addr)->sin_port));
+    sprintf(ascii, "A%u\n", ntohs(((struct sockaddr_in *)this->ai_addr)->sin_port));
 
     freeaddrinfo(this);
     return listenfd;
@@ -65,7 +65,8 @@ int analyizeCommand(const char *str){
 void commandExe(int fd, int i, char *str){
     switch(i){
         case 0: // Q
-            write(fd, "A", 2);
+            write(fd, "A\n", 2);
+            close(fd);
             exit(0);
         case 1: // D
             struct addrinfo *this = getAddr(NULL, "0");
@@ -80,16 +81,15 @@ void commandExe(int fd, int i, char *str){
                 exit(1);
             }
 
-            readParseAndLog(connectfd, str, 1);
+            write(fd, "A\n", 2);
+            readParseAndLog(fd, str, 1);
             commandExe(connectfd, analyizeCommand(str), str);
             close(listenfd); close(connectfd);
             break;
         case 2: // C
-            write(fd, "A", 2);
+            write(fd, "A\n", 2);
             break;
         case 3: // L
-            write(fd, "A", 2);
-
             pid_t p;
             if(p = fork()){ // Parent
                 waitpid(p, NULL, 0);
@@ -101,10 +101,10 @@ void commandExe(int fd, int i, char *str){
 
             break;
         case 4: // G
-            write(fd, "A", 2);
+            write(fd, "A\n", 2);
             break;
         case 5: // P
-            write(fd, "A", 2);
+            write(fd, "A\n", 2);
             break;
         default:
             fprintf(stderr, "Error: Invalid Command\n");
