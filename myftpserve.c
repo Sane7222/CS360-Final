@@ -58,8 +58,25 @@ void commandSet(char *commands[]){
 int analyizeCommand(const char *str){
     char *commands[6]; commandSet(commands);
     int i;
-    for(i = 0; i < 6; i++) if(!strcmp(&str[0], commands[i])) break;
+    for(i = 0; i < 6; i++) if((char)str[0] == commands[i][0]) break;
     return i;
+}
+
+void remoteCD(char *path, int fd){
+    struct stat area, *s = &area;
+    char buffer[BUFFER_SIZE];
+    if(access(path, R_OK) != 0 || lstat(path, s) != 0){
+        write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
+    }
+    else if(S_ISDIR(s->st_mode)){
+        if(chdir(path) != 0){
+            write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
+        }
+        else{
+            write(fd, "A\n", 2);
+        }
+    }
+    else write(fd, "Eno such directory\n", 19);
 }
 
 void commandExe(int fd, int i, char *str){
@@ -87,7 +104,8 @@ void commandExe(int fd, int i, char *str){
             close(listenfd); close(connectfd);
             break;
         case 2: // C
-            write(fd, "A\n", 2);
+            sscanf(str, "C%[^\n]", str);
+            remoteCD(str, fd);
             break;
         case 3: // L
             pid_t p;

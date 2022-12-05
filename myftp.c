@@ -17,7 +17,7 @@ int connectToPort(struct addrinfo *this){
 
 /*Complete commands
     ProfServ + MyClient     |     MyServ + ProfClient     |     MyClient + MyClient
-    ls cd rls ?exit?              ls cd rls exit                ls cd rls exit
+    ls cd rls ?exit? rcd          ls cd rls exit ?rcd?          ls cd rls exit rcd
 
 */
 void setCommands(char *commands[]){
@@ -36,15 +36,15 @@ int analyizeInput(const char *str){ // Returns array index of commands
 
 void localCD(char *path){
     struct stat area, *s = &area;
-    if(access(path, R_OK) != 0 || lstat(path, s) != 0) fprintf(stderr, "Error: %s\n", strerror(errno));
+    if(access(path, R_OK) != 0 || lstat(path, s) != 0) fprintf(stderr, "%s\n", strerror(errno));
     else if(S_ISDIR(s->st_mode)){
-        if(chdir(path) != 0) fprintf(stderr, "Error: %s\n", strerror(errno));
+        if(chdir(path) != 0) fprintf(stderr, "%s\n", strerror(errno));
     }
-    else fprintf(stderr, "Error: Not a Directory <%s>\n", path);
+    else fprintf(stderr, "No such directory\n");
 }
 
 void exeCommand(int i, int fd, char *str){
-    char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE]; char *path;
     switch(i){
         case 0: // Exit
             write(fd, "Q\n", 2);
@@ -52,11 +52,13 @@ void exeCommand(int i, int fd, char *str){
             exit(0);
         case 1: // CD
             strtok(str, " ");
-            char *path = strtok(NULL, "\0");
+            path = strtok(NULL, "\0");
             localCD(path);
             break;
         case 2: // RCD
-            write(fd, "C\n", 2);
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+            write(fd, buffer, sprintf(buffer, "C%s\n", path));
             readParseAndLog(fd, buffer, 1);
             break;
         case 3: // LS
