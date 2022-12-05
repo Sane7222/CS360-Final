@@ -69,12 +69,8 @@ void remoteCD(char *path, int fd){
         write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
     }
     else if(S_ISDIR(s->st_mode)){
-        if(chdir(path) != 0){
-            write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
-        }
-        else{
-            write(fd, "A\n", 2);
-        }
+        if(chdir(path) != 0) write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
+        else write(fd, "A\n", 2);
     }
     else write(fd, "Eno such directory\n", 19);
 }

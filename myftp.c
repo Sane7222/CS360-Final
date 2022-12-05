@@ -17,7 +17,7 @@ int connectToPort(struct addrinfo *this){
 
 /*Complete commands
     ProfServ + MyClient     |     MyServ + ProfClient     |     MyClient + MyClient
-    ls cd rls ?exit? rcd          ls cd rls exit ?rcd?          ls cd rls exit rcd
+    exit ls cd rls rcd            exit ls cd rls rcd            exit ls cd rls rcd 
 
 */
 void setCommands(char *commands[]){
