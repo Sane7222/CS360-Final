@@ -17,8 +17,8 @@ int connectToPort(struct addrinfo *this){
 
 /*Complete commands
     ProfServ + MyClient     |     MyServ + ProfClient     |     MyClient + MyClient
-    exit ls cd rls rcd            exit ls cd rls rcd            exit ls cd rls rcd 
-
+    exit ls cd rls rcd            exit ls cd rls rcd            exit ls cd rls rcd
+    show                          show                          show
 */
 void setCommands(char *commands[]){
     commands[0] = "exit"; commands[1] = "cd"; commands[2] = "rcd"; commands[3] = "ls";
@@ -45,6 +45,9 @@ void localCD(char *path){
 
 void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE]; char *path;
+    int connectfd;
+    struct addrinfo *data;
+    pid_t p;
     switch(i){
         case 0: // Exit
             write(fd, "Q\n", 2);
@@ -69,7 +72,6 @@ void exeCommand(int i, int fd, char *str){
                 int fd[2];
                 if(pipe(fd) != 0){ fprintf(stderr, "Error: %s\n", strerror(errno)); exit(1); }
 
-                pid_t p;
                 if(p = fork()){ // Parent
                     if(close(fd[1]) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
                     if(dup2(fd[0], 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); } // Pipe reads from STDIN
@@ -90,12 +92,11 @@ void exeCommand(int i, int fd, char *str){
             write(fd, "D\n", 2);
             readParseAndLog(fd, buffer, 1);
             sscanf(buffer, "A%s", buffer);
-            struct addrinfo *data = getAddr(NULL, buffer);
-            int connectfd = connectToPort(data);
+            data = getAddr(NULL, buffer);
+            connectfd = connectToPort(data);
             write(fd, "L\n", 2); // 2 were connectfd
             readParseAndLog(fd, buffer, 1);
 
-            pid_t p;
             if(p = fork()){ // Parent
                 waitpid(p, NULL, 0);
             } else { // Child
@@ -107,11 +108,32 @@ void exeCommand(int i, int fd, char *str){
             close(connectfd);
             break;
         case 5: // Get
-        case 6: // Show
             write(fd, "D\n", 2);
             readParseAndLog(fd, buffer, 1);
             write(fd, "G\n", 2);
             readParseAndLog(fd, buffer, 1);
+            break;
+        case 6: // Show
+            write(fd, "D\n", 2);
+            readParseAndLog(fd, buffer, 1);
+            sscanf(buffer, "A%s", buffer);
+            data = getAddr(NULL, buffer);
+            connectfd = connectToPort(data);
+
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+            write(fd, buffer, sprintf(buffer, "G%s\n", path));
+            readParseAndLog(fd, buffer, 1);
+
+            if(p = fork()){ // Parent
+                waitpid(p, NULL, 0);
+            } else { // Child
+                if(dup2(connectfd, 0) == -1){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); } // Writes to STDIN
+                if(close(connectfd) != 0){ fprintf(stderr, "%s\n", strerror(errno)); exit(1); }
+                execlp("more", "more", "-20", NULL);
+            }
+
+            close(connectfd);
             break;
         case 7: // Put
             write(fd, "D\n", 2);
