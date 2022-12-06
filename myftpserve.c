@@ -75,25 +75,26 @@ void remoteCD(char *path, int fd){
     else write(fd, "Eno such directory\n", 19);
 }
 
-void sendFile(char *path, int fd){
+void sendFile(char *path, int fd, int oldfd){
     struct stat area, *s = &area;
     char buffer[BUFFER_SIZE];
     if(access(path, R_OK) != 0 || lstat(path, s) != 0){
-        write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
+        write(oldfd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
     }
     else if(S_ISREG(s->st_mode)){
         int file, num;
-        if((file = open(path, O_RDONLY, 0)) == -1) write(fd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
+        if((file = open(path, O_RDONLY, 0)) == -1) write(oldfd, buffer, sprintf(buffer, "E%s\n", strerror(errno)));
         else{
+            write(oldfd, "A\n", 2);
             lseek(file, 0, SEEK_SET);
             while((num = read(file, buffer, BUFFER_SIZE))) write(fd, buffer, num);
             write(fd, "\n", 1);
         }
     }
-    else write(fd, "Eno such file\n", 14);
+    else write(oldfd, "Eno such file\n", 14);
 }
 
-void commandExe(int fd, int i, char *str){
+void commandExe(int fd, int i, char *str, int oldfd){
     pid_t p;
     switch(i){
         case 0: // Q
@@ -113,16 +114,16 @@ void commandExe(int fd, int i, char *str){
                 exit(1);
             }
 
-            write(fd, "A\n", 2);
-            readParseAndLog(fd, str, 1);
-            commandExe(connectfd, analyizeCommand(str), str);
+            readParseAndLog(fd, str, 1, 0);
+            commandExe(connectfd, analyizeCommand(str), str, fd);
             close(listenfd); close(connectfd);
             break;
         case 2: // C
             sscanf(str, "C%[^\n]", str);
-            remoteCD(str, fd);
+            remoteCD(str, fd); // ?
             break;
         case 3: // L
+            write(oldfd, "A\n", 2);
             if(p = fork()){ // Parent
                 waitpid(p, NULL, 0);
             } else { // Child
@@ -136,7 +137,7 @@ void commandExe(int fd, int i, char *str){
                 waitpid(p, NULL, 0);
             } else { // Child
                 sscanf(str, "G%[^\n]", str);
-                sendFile(str, fd);
+                sendFile(str, fd, oldfd); // send a or E to old fd
                 exit(0);
             }
             break;
@@ -188,8 +189,8 @@ void main(int argc, char *argv[]){
             close(listenfd);
 
             for(;;){
-                readParseAndLog(connectfd, buffer, 1);
-                commandExe(connectfd, analyizeCommand(buffer), buffer);
+                readParseAndLog(connectfd, buffer, 1, 0);
+                commandExe(connectfd, analyizeCommand(buffer), buffer, 0);
             }
         }
     }

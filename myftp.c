@@ -18,7 +18,7 @@ int connectToPort(struct addrinfo *this){
 /*Complete commands
     ProfServ + MyClient     |     MyServ + ProfClient     |     MyClient + MyClient
     exit ls cd rls rcd            exit ls cd rls rcd            exit ls cd rls rcd
-    show                          show                          show
+    show get                      show get                      show get
 */
 void setCommands(char *commands[]){
     commands[0] = "exit"; commands[1] = "cd"; commands[2] = "rcd"; commands[3] = "ls";
@@ -43,6 +43,36 @@ void localCD(char *path){
     else fprintf(stderr, "No such directory\n");
 }
 
+void makeFile(char *filename, int fd) {
+
+    // Check if the file already exists
+    if (access(filename, F_OK) != -1) {
+        printf("Error: File '%s' already exists\n", filename);
+        return;
+    }
+
+    // Open the file in write mode
+    FILE *file = fopen(filename, "w");
+
+    // Check if the file was successfully opened
+    if (file == NULL) {
+        printf("Error: Could not create file '%s'\n", filename);
+    } else {
+        printf("Success: File '%s' created\n", filename);
+
+        // Read from the file descriptor and write to the file
+        char buf[BUFFER_SIZE];
+        int n;
+        while ((n = read(fd, buf, BUFFER_SIZE)) > 0) {
+            fwrite(buf, 1, n, file);
+        }
+    }
+
+    // Close the file
+    fclose(file);
+}
+
+
 void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE]; char *path;
     int connectfd;
@@ -51,7 +81,7 @@ void exeCommand(int i, int fd, char *str){
     switch(i){
         case 0: // Exit
             write(fd, "Q\n", 2);
-            readParseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1, 1);
             exit(0);
         case 1: // CD
             strtok(str, " ");
@@ -62,7 +92,7 @@ void exeCommand(int i, int fd, char *str){
             strtok(str, " ");
             path = strtok(NULL, "\0");
             write(fd, buffer, sprintf(buffer, "C%s\n", path));
-            readParseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1, 1);
             break;
         case 3: // LS
             pid_t gp;
@@ -90,12 +120,15 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 4: // RLS
             write(fd, "D\n", 2);
-            readParseAndLog(fd, buffer, 1);
+            if(readParseAndLog(fd, buffer, 1, 1)) break;
             sscanf(buffer, "A%s", buffer);
             data = getAddr(NULL, buffer);
             connectfd = connectToPort(data);
-            write(fd, "L\n", 2); // 2 were connectfd
-            readParseAndLog(fd, buffer, 1);
+            write(fd, "L\n", 2);
+            if(readParseAndLog(fd, buffer, 1, 1)){
+                close(connectfd);
+                break;
+            }
 
             if(p = fork()){ // Parent
                 waitpid(p, NULL, 0);
@@ -109,13 +142,7 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 5: // Get
             write(fd, "D\n", 2);
-            readParseAndLog(fd, buffer, 1);
-            write(fd, "G\n", 2);
-            readParseAndLog(fd, buffer, 1);
-            break;
-        case 6: // Show
-            write(fd, "D\n", 2);
-            readParseAndLog(fd, buffer, 1);
+            if(readParseAndLog(fd, buffer, 1, 1)) break;
             sscanf(buffer, "A%s", buffer);
             data = getAddr(NULL, buffer);
             connectfd = connectToPort(data);
@@ -123,7 +150,29 @@ void exeCommand(int i, int fd, char *str){
             strtok(str, " ");
             path = strtok(NULL, "\0");
             write(fd, buffer, sprintf(buffer, "G%s\n", path));
-            readParseAndLog(fd, buffer, 1);
+            if(readParseAndLog(fd, buffer, 0, 1)){
+                close(connectfd);
+                break;
+            }
+
+            makeFile(path, connectfd);
+
+            close(connectfd);
+            break;
+        case 6: // Show
+            write(fd, "D\n", 2);
+            if(readParseAndLog(fd, buffer, 1, 1)) break;
+            sscanf(buffer, "A%s", buffer);
+            data = getAddr(NULL, buffer);
+            connectfd = connectToPort(data);
+
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+            write(fd, buffer, sprintf(buffer, "G%s\n", path));
+            if(readParseAndLog(fd, buffer, 1, 1)){
+                close(connectfd);
+                break;
+            }
 
             if(p = fork()){ // Parent
                 waitpid(p, NULL, 0);
@@ -137,9 +186,9 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 7: // Put
             write(fd, "D\n", 2);
-            readParseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1, 1);
             write(fd, "P\n", 2);
-            readParseAndLog(fd, buffer, 1);
+            readParseAndLog(fd, buffer, 1, 1);
             break;
         default: 
             fprintf(stderr, "Error: Invalid Command\n");
@@ -154,7 +203,7 @@ void main(int argc, char *argv[]){
 
     for(;;){
         fprintf(stdout, "Command: "); fflush(NULL);
-        readParseAndLog(0, buffer, 0);
+        readParseAndLog(0, buffer, 0, 0);
         exeCommand(analyizeInput(buffer), connectfd, buffer);
     }
 }

@@ -38,7 +38,7 @@ int removeTrailingWhiteSpace(char *str){ // Returns length of string
     return i;
 }
 
-void readParseAndLog(int fd, char *buffer, int logOpt){
+int readParseAndLog(int fd, char *buffer, int logOpt, int fromServ){
     char byte[1];
     int i = 0;
     while(read(fd, byte, 1) != 0 && byte[0] != '\n'){
@@ -48,6 +48,15 @@ void readParseAndLog(int fd, char *buffer, int logOpt){
     sscanf(buffer, " %[^\n]", buffer);
     removeTrailingWhiteSpace(buffer);
     if(logOpt) fprintf(stdout, "%s\n", buffer);
+    if(fromServ){
+        if((char)buffer[0] == 'E'){
+            sscanf(buffer, "E%[^\n]", buffer);
+            fprintf(stderr, "%s\n", buffer);
+            return 1;
+        }
+        else return 0;
+    }
+    return 0;
 }
 
 #endif
