@@ -44,34 +44,16 @@ void localCD(char *path){
 }
 
 void makeFile(char *filename, int fd) {
-
-    // Check if the file already exists
-    if (access(filename, F_OK) != -1) {
-        printf("Error: File '%s' already exists\n", filename);
-        return;
-    }
-
-    // Open the file in write mode
-    FILE *file = fopen(filename, "w");
-
-    // Check if the file was successfully opened
-    if (file == NULL) {
-        printf("Error: Could not create file '%s'\n", filename);
-    } else {
-        printf("Success: File '%s' created\n", filename);
-
-        // Read from the file descriptor and write to the file
+    FILE *file = fopen(filename, "w"); // Open file for writing
+    if (file == NULL) fprintf(stderr, "Error: Could not create file '%s'\n", filename);
+    else {
+        fprintf(stdout, "Success: File '%s' created\n", filename);
         char buf[BUFFER_SIZE];
         int n;
-        while ((n = read(fd, buf, BUFFER_SIZE)) > 0) {
-            fwrite(buf, 1, n, file);
-        }
+        while ((n = read(fd, buf, BUFFER_SIZE)) > 0) fwrite(buf, 1, n, file);
     }
-
-    // Close the file
     fclose(file);
 }
-
 
 void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE]; char *path;
@@ -141,14 +123,20 @@ void exeCommand(int i, int fd, char *str){
             close(connectfd);
             break;
         case 5: // Get
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+
+            if (access(path, F_OK) != -1) {
+                printf("Error: File '%s' already exists\n", path);
+                break;
+            }
+
             write(fd, "D\n", 2);
             if(readParseAndLog(fd, buffer, 1, 1)) break;
             sscanf(buffer, "A%s", buffer);
             data = getAddr(NULL, buffer);
             connectfd = connectToPort(data);
 
-            strtok(str, " ");
-            path = strtok(NULL, "\0");
             write(fd, buffer, sprintf(buffer, "G%s\n", path));
             if(readParseAndLog(fd, buffer, 0, 1)){
                 close(connectfd);
@@ -156,7 +144,6 @@ void exeCommand(int i, int fd, char *str){
             }
 
             makeFile(path, connectfd);
-
             close(connectfd);
             break;
         case 6: // Show
@@ -186,9 +173,19 @@ void exeCommand(int i, int fd, char *str){
             break;
         case 7: // Put
             write(fd, "D\n", 2);
-            readParseAndLog(fd, buffer, 1, 1);
-            write(fd, "P\n", 2);
-            readParseAndLog(fd, buffer, 1, 1);
+            if(readParseAndLog(fd, buffer, 1, 1)) break;
+            sscanf(buffer, "A%s", buffer);
+            data = getAddr(NULL, buffer);
+            connectfd = connectToPort(data);
+
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+            write(fd, buffer, sprintf(buffer, "P%s\n", path));
+            if(readParseAndLog(fd, buffer, 1, 1)){
+                close(connectfd);
+                break;
+            }
+
             break;
         default: 
             fprintf(stderr, "Error: Invalid Command\n");

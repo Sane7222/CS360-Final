@@ -120,7 +120,7 @@ void commandExe(int fd, int i, char *str, int oldfd){
             break;
         case 2: // C
             sscanf(str, "C%[^\n]", str);
-            remoteCD(str, fd); // ?
+            remoteCD(str, fd);
             break;
         case 3: // L
             write(oldfd, "A\n", 2);
@@ -137,7 +137,7 @@ void commandExe(int fd, int i, char *str, int oldfd){
                 waitpid(p, NULL, 0);
             } else { // Child
                 sscanf(str, "G%[^\n]", str);
-                sendFile(str, fd, oldfd); // send a or E to old fd
+                sendFile(str, fd, oldfd);
                 exit(0);
             }
             break;
