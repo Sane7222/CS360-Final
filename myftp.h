@@ -47,15 +47,14 @@ int readParseAndLog(int fd, char *buffer, int logOpt, int fromServ){
     buffer[i] = '\0';
     sscanf(buffer, " %[^\n]", buffer);
     removeTrailingWhiteSpace(buffer);
-    if(logOpt) fprintf(stdout, "%s\n", buffer);
     if(fromServ){
         if((char)buffer[0] == 'E'){
             sscanf(buffer, "E%[^\n]", buffer);
-            fprintf(stderr, "%s\n", buffer);
+            if(logOpt) fprintf(stderr, "%s\n", buffer);
             return 1;
         }
-        else return 0;
     }
+    if(logOpt) fprintf(stdout, "%s\n", buffer);
     return 0;
 }
 

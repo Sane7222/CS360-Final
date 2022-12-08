@@ -55,6 +55,22 @@ void makeFile(char *filename, int fd) {
     fclose(file);
 }
 
+void sendFile(char *path, int fd, int oldfd){
+    struct stat area, *s = &area;
+    char buffer[BUFFER_SIZE];
+    if(access(path, R_OK) != 0 || lstat(path, s) != 0) close(fd);
+    else if(S_ISREG(s->st_mode)){
+        int file, num;
+        if((file = open(path, O_RDONLY, 0)) == -1) close(fd);
+        else{
+            lseek(file, 0, SEEK_SET);
+            while((num = read(file, buffer, BUFFER_SIZE))) write(fd, buffer, num);
+            close(fd);
+        }
+    }
+    else close(fd);
+}
+
 void exeCommand(int i, int fd, char *str){
     char buffer[BUFFER_SIZE]; char *path;
     int connectfd;
@@ -138,7 +154,7 @@ void exeCommand(int i, int fd, char *str){
             connectfd = connectToPort(data);
 
             write(fd, buffer, sprintf(buffer, "G%s\n", path));
-            if(readParseAndLog(fd, buffer, 0, 1)){
+            if(readParseAndLog(fd, buffer, 1, 1)){
                 close(connectfd);
                 break;
             }
@@ -172,19 +188,27 @@ void exeCommand(int i, int fd, char *str){
             close(connectfd);
             break;
         case 7: // Put
+            strtok(str, " ");
+            path = strtok(NULL, "\0");
+
+            if (access(path, F_OK) == -1) {
+                fprintf(stderr, "Error: File '%s' does not exists\n", path);
+                break;
+            }
+
             write(fd, "D\n", 2);
             if(readParseAndLog(fd, buffer, 1, 1)) break;
             sscanf(buffer, "A%s", buffer);
             data = getAddr(NULL, buffer);
             connectfd = connectToPort(data);
 
-            strtok(str, " ");
-            path = strtok(NULL, "\0");
             write(fd, buffer, sprintf(buffer, "P%s\n", path));
-            if(readParseAndLog(fd, buffer, 1, 1)){
+            if(readParseAndLog(fd, buffer, 1, 1)){ 
                 close(connectfd);
                 break;
             }
+
+            sendFile(path, connectfd, fd);
 
             break;
         default: 
