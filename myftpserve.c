@@ -75,6 +75,25 @@ void remoteCD(char *path, int fd){
     else write(fd, "Eno such directory\n", 19);
 }
 
+void makeFile(char *filename, int fd, int oldfd) {
+    if (access(filename, F_OK) == 0) {
+        write(oldfd, "EFile Exists\n", 13);
+        return;
+    }
+    FILE *file = fopen(filename, "w"); // Open file for writing
+    if (file == NULL){
+        write(oldfd, "ECould not create file\n", 23);
+        return;
+    }
+    else {
+        write(oldfd, "A\n", 2);
+        char buf[BUFFER_SIZE];
+        int n;
+        while ((n = read(fd, buf, BUFFER_SIZE)) > 0) fwrite(buf, 1, n, file);
+    }
+    fclose(file);
+}
+
 void sendFile(char *path, int fd, int oldfd){
     struct stat area, *s = &area;
     char buffer[BUFFER_SIZE];
@@ -142,7 +161,8 @@ void commandExe(int fd, int i, char *str, int oldfd){
             }
             break;
         case 5: // P
-            write(fd, "A\n", 2);
+            sscanf(str, "P%[^\n]", str);
+            makeFile(str, fd, oldfd);
             break;
         default:
             fprintf(stderr, "Error: Invalid Command\n");

@@ -142,7 +142,7 @@ void exeCommand(int i, int fd, char *str){
             strtok(str, " ");
             path = strtok(NULL, "\0");
 
-            if (access(path, F_OK) != -1) {
+            if (access(path, F_OK) == 0) {
                 printf("Error: File '%s' already exists\n", path);
                 break;
             }
